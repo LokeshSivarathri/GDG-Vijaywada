@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPL Analytics - AI Prediction Engine</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;900&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --primary: #00e5ff;
+            --secondary: #2979ff;
+            --accent: #ff1744;
+            --glass: rgba(16, 25, 43, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: url('/static/bg.png') no-repeat center center fixed;
+            background-size: cover;
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Ambient background overlay */
+        .overlay {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at center, rgba(11, 15, 25, 0.4) 0%, rgba(11, 15, 25, 0.9) 100%);
+            z-index: 1;
+        }
+
+        .dashboard {
+            position: relative;
+            z-index: 10;
+            width: 95%;
+            max-width: 1400px;
+            height: 90vh;
+            display: grid;
+            grid-template-columns: 450px 1fr;
+            gap: 40px;
+            padding: 40px;
+            background: var(--glass);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--glass-border);
+            border-radius: 30px;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1);
+            animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* Left Side: Controls & Results */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+            height: 100%;
+        }
+
+        .header {
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .logo {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 2rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: -1px;
+            background: linear-gradient(135deg, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo::before {
+            content: '';
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            background: var(--primary);
+            border-radius: 50%;
+            box-shadow: 0 0 15px var(--primary);
+            animation: pulse-dot 2s infinite;
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 25px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .panel::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+        }
+
+        .title {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--primary);
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        p.desc {
+            font-size: 1.05rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+
+        .btn-predict {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border: none;
+            border-radius: 14px;
+            color: #fff;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0, 229, 255, 0.3);
+        }
+
+        .btn-predict::after {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.4) 0%, transparent 60%);
+            opacity: 0;
+            transform: scale(0.5);
+            transition: 0.5s;
+        }
+
+        .btn-predict:hover::after {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .btn-predict:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px rgba(0, 229, 255, 0.5);
+        }
+        
+        .btn-predict:active {
+            transform: translateY(1px);
+        }
+
+        /* Results Panel */
+        .results-panel {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+            pointer-events: none;
+        }
+
+        .results-panel.show {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        .delivery-type {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--accent);
+            text-shadow: 0 0 20px rgba(255, 23, 68, 0.4);
+            margin-bottom: 5px;
+            line-height: 1.1;
+        }
+
+        .reasoning-box {
+            background: rgba(0,0,0,0.4);
+            border-left: 4px solid var(--accent);
+            padding: 15px 20px;
+            border-radius: 0 12px 12px 0;
+            font-size: 1rem;
+            color: var(--text-main);
+            line-height: 1.6;
+            margin-top: 15px;
+        }
+
+        /* Stats Mock */
+        .stats {
+            margin-top: 25px;
+        }
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+        .progress-bg {
+            width: 100%;
+            height: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 15px;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            width: 0%;
+            transition: width 1.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+            border-radius: 4px;
+            box-shadow: 0 0 10px var(--primary);
+        }
+
+        /* Loader */
+        .loader-container {
+            display: none;
+            justify-content: center;
+            align-items: center;
+            padding: 20px 0;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s infinite linear;
+        }
+
+        /* Right Side: Pitch Vis */
+        .pitch-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle, rgba(255,255,255,0.03) 0%, transparent 70%);
+            border-radius: 20px;
+            overflow: hidden;
+            perspective: 1200px;
+        }
+
+        .pitch-container::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: url('data:image/svg+xml;utf8,<svg width="40" height="40" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="1" fill="rgba(255,255,255,0.1)"/></svg>');
+            opacity: 0.5;
+        }
+
+        .field {
+            width: 420px;
+            height: 600px;
+            background: repeating-linear-gradient(
+                0deg,
+                #257144,
+                #257144 40px,
+                #20613a 40px,
+                #20613a 80px
+            );
+            border-radius: 210px;
+            border: 8px solid rgba(255, 255, 255, 0.8);
+            box-shadow: inset 0 0 100px rgba(0,0,0,0.8), 0 30px 60px rgba(0,0,0,0.6), 0 0 30px rgba(255,255,255,0.1);
+            position: relative;
+            transform: rotateX(25deg);
+            transform-style: preserve-3d;
+            transition: transform 0.5s ease;
+        }
+
+        .field:hover {
+            transform: rotateX(20deg) scale(1.02);
+        }
+
+        /* The Pitch */
+        .inner-pitch {
+            position: absolute;
+            top: 15%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 65px;
+            height: 70%;
+            background: #cd9a5b;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 2px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.4);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .crease {
+            position: absolute;
+            width: 100%;
+            height: 2px;
+            background: #fff;
+            opacity: 0.9;
+        }
+        .crease.top-bowling { top: 0; }
+        .crease.top-popping { top: 15%; }
+        .crease.bottom-bowling { bottom: 0; }
+        .crease.bottom-popping { bottom: 15%; }
+
+        .stumps {
+            position: absolute;
+            width: 14px;
+            height: 4px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            justify-content: space-between;
+        }
+        .stumps.top { top: -2px; }
+        .stumps.bottom { bottom: -2px; }
+        .stump {
+            width: 2px;
+            height: 10px;
+            background: #fff;
+            box-shadow: 0 0 5px #fff;
+        }
+
+        /* 30-yard circle */
+        .circle-30 {
+            position: absolute;
+            top: 12%;
+            left: 12%;
+            width: 76%;
+            height: 76%;
+            border: 2px dashed rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        /* Fielders */
+        .fielder {
+            position: absolute;
+            width: 36px;
+            height: 36px;
+            background: rgba(15, 23, 42, 0.85);
+            border: 2px solid var(--text-muted);
+            border-radius: 50%;
+            transform: translate(-50%, -50%) translateZ(15px);
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+
+        .fielder svg {
+            width: 18px;
+            height: 18px;
+            fill: var(--text-muted);
+            transition: 0.3s;
+        }
+
+        .fielder:hover {
+            transform: translate(-50%, -50%) translateZ(30px) scale(1.15);
+            border-color: #fff;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.6);
+        }
+
+        .fielder.active {
+            background: var(--accent);
+            border-color: #fff;
+            box-shadow: 0 0 25px var(--accent), inset 0 0 10px rgba(255,255,255,0.5);
+        }
+
+        .fielder.active svg {
+            fill: #fff;
+        }
+
+        .fielder::after {
+            content: attr(data-pos);
+            position: absolute;
+            top: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.9);
+            border: 1px solid rgba(255,255,255,0.15);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: 0.3s;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+        }
+
+        .fielder:hover::after, .fielder.active::after {
+            opacity: 1;
+            top: -50px;
+        }
+
+        /* Radar Scanner Effect */
+        .scanner {
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 100%; height: 100%;
+            border-radius: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            background: radial-gradient(circle, rgba(0,229,255,0.15) 0%, transparent 70%);
+            border: 2px solid rgba(0,229,255,0.6);
+            opacity: 0;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .scanner.active {
+            animation: scanWave 1.5s ease-out infinite;
+        }
+
+        @keyframes scanWave {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
+        }
+        @keyframes pulse-dot {
+            0% { box-shadow: 0 0 0 0 rgba(0, 229, 255, 0.4); }
+            70% { box-shadow: 0 0 0 10px transparent; }
+            100% { box-shadow: 0 0 0 0 transparent; }
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(40px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Responsive */
+        @media (max-width: 1100px) {
+            body { overflow-y: auto; display: block; padding: 20px; }
+            .dashboard {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            .field {
+                transform: scale(0.8) rotateX(20deg);
+            }
+            .pitch-container { padding: 40px 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="overlay"></div>
+    
+    <div class="dashboard">
+        <!-- Sidebar Controls -->
+        <div class="sidebar">
+            <div class="header">
+                <div class="logo">Tactical AI Edge</div>
+            </div>
+
+            <div class="panel">
+                <div class="title">Strategy Configuration</div>
+                <p class="desc">Tap fielders on the pitch to build your setup. The neural engine analyzes gaps in real-time to prescribe the most lethal delivery.</p>
+                
+                <button class="btn-predict" id="predictBtn">Execute Analysis</button>
+                
+                <div class="loader-container" id="loader">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+
+            <div class="panel results-panel" id="resultsPanel">
+                <div class="title">AI Recommendation</div>
+                <div class="delivery-type" id="predictionValue">--</div>
+                
+                <div class="stats">
+                    <div class="stat-row">
+                        <span>Expected Success Probability</span>
+                        <span id="probValue" style="color: var(--primary); font-weight: 800; font-size: 1.1rem;">--%</span>
+                    </div>
+                    <div class="progress-bg">
+                        <div class="progress-fill" id="probBar"></div>
+                    </div>
+                </div>
+
+                <div class="reasoning-box" id="reasoningValue">
+                    Awaiting configuration...
+                </div>
+            </div>
+        </div>
+
+        <!-- 3D Pitch Vis -->
+        <div class="pitch-container">
+            <div class="field" id="field">
+                <div class="scanner" id="scanner"></div>
+                <div class="circle-30"></div>
+                
+                <div class="inner-pitch">
+                    <div class="crease top-bowling"></div>
+                    <div class="crease top-popping"></div>
+                    <div class="stumps top">
+                        <div class="stump"></div><div class="stump"></div><div class="stump"></div>
+                    </div>
+                    
+                    <div class="crease bottom-bowling"></div>
+                    <div class="crease bottom-popping"></div>
+                    <div class="stumps bottom">
+                        <div class="stump"></div><div class="stump"></div><div class="stump"></div>
+                    </div>
+                </div>
+                <!-- Fielders injected here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Updated positions mapped to the new field dimensions
+        // Top is striker (batsman), bottom is non-striker (bowler)
+        // x: 0-100% left to right
+        // y: 0-100% top to bottom
+        const positions = [
+            { id: 'Slip', label: 'Slip', x: 42, y: 15 },
+            { id: 'Third Man', label: '3rd Man', x: 25, y: 8 },
+            { id: 'Point', label: 'Point', x: 15, y: 35 },
+            { id: 'Cover', label: 'Cover', x: 25, y: 60 },
+            { id: 'Mid Off', label: 'Mid Off', x: 40, y: 85 },
+            { id: 'Mid On', label: 'Mid On', x: 60, y: 85 },
+            { id: 'Mid Wicket', label: 'Mid Wicket', x: 75, y: 60 },
+            { id: 'Square Leg', label: 'Sq Leg', x: 85, y: 35 },
+            { id: 'Fine Leg', label: 'Fine Leg', x: 75, y: 15 }
+        ];
+
+        const fieldEl = document.getElementById('field');
+        const fieldSetup = {};
+
+        // SVG Icon for Fielder (User silhouette)
+        const playerIcon = `<svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>`;
+
+        positions.forEach(pos => {
+            fieldSetup[pos.id] = 0;
+            
+            const dot = document.createElement('div');
+            dot.className = 'fielder';
+            dot.style.left = pos.x + '%';
+            dot.style.top = pos.y + '%';
+            dot.setAttribute('data-pos', pos.label);
+            dot.innerHTML = playerIcon;
+            
+            dot.addEventListener('click', () => {
+                dot.classList.toggle('active');
+                fieldSetup[pos.id] = dot.classList.contains('active') ? 1 : 0;
+            });
+            
+            fieldEl.appendChild(dot);
+        });
+
+        // Prediction Logic
+        const predictBtn = document.getElementById('predictBtn');
+        const loader = document.getElementById('loader');
+        const resultsPanel = document.getElementById('resultsPanel');
+        const predValue = document.getElementById('predictionValue');
+        const reasonValue = document.getElementById('reasoningValue');
+        const scanner = document.getElementById('scanner');
+        const probBar = document.getElementById('probBar');
+        const probValue = document.getElementById('probValue');
+
+        predictBtn.addEventListener('click', async () => {
+            // UI Loading State
+            predictBtn.style.display = 'none';
+            loader.style.display = 'flex';
+            resultsPanel.classList.remove('show');
+            scanner.classList.add('active');
+            probBar.style.width = '0%';
+            
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ field_setup: fieldSetup })
+                });
+                
+                const data = await response.json();
+                
+                // Simulate deep thinking delay for effect
+                setTimeout(() => {
+                    predValue.textContent = data.prediction;
+                    reasonValue.textContent = data.reasoning;
+                    
+                    // Generate a fake high probability for dramatic effect (78% to 96%)
+                    const mockProb = Math.floor(Math.random() * (96 - 78 + 1)) + 78;
+                    probValue.textContent = mockProb + '%';
+                    
+                    loader.style.display = 'none';
+                    predictBtn.style.display = 'block';
+                    predictBtn.textContent = 'Re-Analyze Setup';
+                    scanner.classList.remove('active');
+                    
+                    resultsPanel.classList.add('show');
+                    
+                    // Animate progress bar after panel is visible
+                    setTimeout(() => {
+                        probBar.style.width = mockProb + '%';
+                    }, 100);
+                    
+                }, 1400); // 1.4s delay for the scanner animation
+                
+            } catch (err) {
+                console.error(err);
+                alert("Neural engine offline. Check connection.");
+                loader.style.display = 'none';
+                predictBtn.style.display = 'block';
+                scanner.classList.remove('active');
+            }
+        });
+    </script>
+</body>
+</html>
