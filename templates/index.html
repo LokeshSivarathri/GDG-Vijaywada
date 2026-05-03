@@ -177,6 +177,41 @@
             transform: translateY(1px);
         }
 
+        /* Bowler Toggle */
+        .bowler-toggle {
+            display: flex;
+            background: rgba(0,0,0,0.4);
+            padding: 5px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border: 1px solid var(--glass-border);
+        }
+
+        .bowler-option {
+            flex: 1;
+            text-align: center;
+            padding: 12px;
+            cursor: pointer;
+            border-radius: 8px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 700;
+            font-size: 1rem;
+            color: var(--text-muted);
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .bowler-option:hover {
+            color: var(--text-main);
+        }
+
+        .bowler-option.active {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: #fff;
+            box-shadow: 0 5px 15px rgba(0, 229, 255, 0.3);
+        }
+
         /* Results Panel */
         .results-panel {
             flex-grow: 1;
@@ -494,6 +529,12 @@
 
             <div class="panel">
                 <div class="title">Strategy Configuration</div>
+                
+                <div class="bowler-toggle" id="bowlerToggle">
+                    <div class="bowler-option active" data-type="pace">Pace</div>
+                    <div class="bowler-option" data-type="spin">Spin</div>
+                </div>
+
                 <p class="desc">Tap fielders on the pitch to build your setup. The neural engine analyzes gaps in real-time to prescribe the most lethal delivery.</p>
                 
                 <button class="btn-predict" id="predictBtn">Execute Analysis</button>
@@ -598,6 +639,18 @@
         const probBar = document.getElementById('probBar');
         const probValue = document.getElementById('probValue');
 
+        let currentBowlerType = 'pace';
+
+        // Bowler Toggle Logic
+        const bowlerOptions = document.querySelectorAll('.bowler-option');
+        bowlerOptions.forEach(opt => {
+            opt.addEventListener('click', () => {
+                bowlerOptions.forEach(o => o.classList.remove('active'));
+                opt.classList.add('active');
+                currentBowlerType = opt.getAttribute('data-type');
+            });
+        });
+
         predictBtn.addEventListener('click', async () => {
             // UI Loading State
             predictBtn.style.display = 'none';
@@ -610,7 +663,10 @@
                 const response = await fetch('/predict', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ field_setup: fieldSetup })
+                    body: JSON.stringify({ 
+                        field_setup: fieldSetup,
+                        bowler_type: currentBowlerType
+                    })
                 });
                 
                 const data = await response.json();

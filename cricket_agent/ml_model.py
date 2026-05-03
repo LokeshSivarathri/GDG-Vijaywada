@@ -12,7 +12,7 @@ ENCODER_PATH = "cricket_agent/encoder.pkl"
 def generate_synthetic_data(num_samples=1000):
     np.random.seed(42)
     
-    # 9 fielding positions
+    # 9 fielding positions + Bowler Type
     data = {
         'Slip': np.random.randint(0, 2, num_samples),
         'Third Man': np.random.randint(0, 2, num_samples),
@@ -23,25 +23,36 @@ def generate_synthetic_data(num_samples=1000):
         'Mid Wicket': np.random.randint(0, 2, num_samples),
         'Square Leg': np.random.randint(0, 2, num_samples),
         'Fine Leg': np.random.randint(0, 2, num_samples),
+        'Bowler_Type': np.random.randint(0, 2, num_samples), # 0 for Pace, 1 for Spin
     }
     
     df = pd.DataFrame(data)
     
-    # Logic to determine best ball based on field
+    # Logic to determine best ball based on field and bowler type
     targets = []
     for _, row in df.iterrows():
-        # Heuristics for synthetic data based on cricket logic for Pace Bowlers
-        if row['Slip'] == 1 and row['Point'] == 1:
-            targets.append('Outswinger') # Try to get caught behind or in slips/point
-        elif row['Fine Leg'] == 1 and row['Square Leg'] == 1:
-            targets.append('Bouncer') # Trap for the hook/pull shot
-        elif row['Mid Wicket'] == 1 and row['Mid On'] == 1:
-            targets.append('Inswinger') # Attack stumps, cramp room
-        elif row['Mid Off'] == 1 and row['Cover'] == 1:
-            targets.append('Slower Ball') # Tempting drive
-        else:
-            # Default or balanced
-            targets.append('Good Length') # Standard wicket-taking delivery
+        if row['Bowler_Type'] == 0: # Pace
+            if row['Slip'] == 1 and row['Point'] == 1:
+                targets.append('Outswinger') # Try to get caught behind or in slips/point
+            elif row['Fine Leg'] == 1 and row['Square Leg'] == 1:
+                targets.append('Bouncer') # Trap for the hook/pull shot
+            elif row['Mid Wicket'] == 1 and row['Mid On'] == 1:
+                targets.append('Inswinger') # Attack stumps, cramp room
+            elif row['Mid Off'] == 1 and row['Cover'] == 1:
+                targets.append('Slower Ball') # Tempting drive
+            else:
+                targets.append('Good Length') # Standard wicket-taking delivery
+        else: # Spin
+            if row['Slip'] == 1 and row['Point'] == 1:
+                targets.append('Leg Break') # Turning away, inviting the outside edge
+            elif row['Mid Wicket'] == 1 and row['Square Leg'] == 1:
+                targets.append('Googly') # Surprise variation turning in
+            elif row['Mid Off'] == 1 and row['Cover'] == 1:
+                targets.append('Flighted Delivery') # Tempting the batsman to step out
+            elif row['Fine Leg'] == 1 and row['Third Man'] == 1:
+                targets.append('Arm Ball') # Skidding straight, cramping for room
+            else:
+                targets.append('Off Break') # Standard spin delivery
             
     df['Target'] = targets
     return df
@@ -76,9 +87,10 @@ def train_model():
         
     print(f"Model saved to {MODEL_PATH}")
 
-def predict_best_ball(field_setup):
+def predict_best_ball(field_setup, bowler_type='pace'):
     """
     field_setup: dict of fielder positions, e.g., {'Slip': 1, 'Point': 1, ...}
+    bowler_type: string, either 'pace' or 'spin'
     Returns predicted ball type.
     """
     if not os.path.exists(MODEL_PATH):
@@ -90,12 +102,14 @@ def predict_best_ball(field_setup):
         le = pickle.load(f)
         
     # Default positions to 0 if not provided
-    features = ['Slip', 'Third Man', 'Point', 'Cover', 'Mid Off', 'Mid On', 'Mid Wicket', 'Square Leg', 'Fine Leg']
+    features = ['Slip', 'Third Man', 'Point', 'Cover', 'Mid Off', 'Mid On', 'Mid Wicket', 'Square Leg', 'Fine Leg', 'Bowler_Type']
     input_data = {f: 0 for f in features}
     
     for k, v in field_setup.items():
         if k in input_data:
             input_data[k] = v
+            
+    input_data['Bowler_Type'] = 1 if bowler_type.lower() == 'spin' else 0
             
     df_input = pd.DataFrame([input_data])
     prediction_encoded = model.predict(df_input)
